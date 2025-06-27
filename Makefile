@@ -1,40 +1,56 @@
-# Compilador
-CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Iinclude
+# Compilador e flags
+CXX := g++
+CXXFLAGS := -std=c++11 -Wall -Wextra -Iinclude
+LDFLAGS := -pthread
 
 # Diretórios
-SRC_DIR = src
-BIN_DIR = bin
-TEST_DIR = tests
+SRC_DIR := src
+BUILD_DIR := build
+BIN_DIR := bin
+TEST_DIR := tests
 
-# Arquivos
-SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
-OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SOURCES))
-EXECUTABLE = $(BIN_DIR)/twitter
+# Arquivos fonte principais
+SRCS := $(wildcard $(SRC_DIR)/*.cpp)
+OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-# Testes
-TEST_SOURCES = $(wildcard $(TEST_DIR)/*.cpp)
-TEST_EXECUTABLE = $(BIN_DIR)/twitter_test
+# Arquivos de teste
+TEST_SRCS := $(wildcard $(TEST_DIR)/*.cpp)
+TEST_OBJS := $(patsubst $(TEST_DIR)/%.cpp,$(BUILD_DIR)/$(TEST_DIR)/%.o,$(TEST_SRCS))
 
-.PHONY: all clean run test
+# Executáveis
+MAIN_EXEC := $(BIN_DIR)/twitter_cli
+TEST_EXEC := $(BIN_DIR)/twitter_tests
 
-all: $(EXECUTABLE)
+# Alvo principal
+all: $(MAIN_EXEC)
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+# Regra para o executável principal
+$(MAIN_EXEC): $(OBJS)
+	@mkdir -p $(@D)
+	$(CXX) $(LDFLAGS) $^ -o $@
 
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(BIN_DIR)
+# Regra para objetos principais
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-run: $(EXECUTABLE)
-	./$(EXECUTABLE)
+# --- Testes Unitários ---
+test: $(TEST_EXEC)
+	@./$(TEST_EXEC)
 
-test: $(TEST_EXECUTABLE)
-	./$(TEST_EXECUTABLE)
+$(TEST_EXEC): $(TEST_OBJS) $(filter-out $(BUILD_DIR)/main.o, $(OBJS))
+	@mkdir -p $(@D)
+	$(CXX) $(LDFLAGS) $^ -o $@
 
-$(TEST_EXECUTABLE): $(filter-out $(BIN_DIR)/main.o, $(OBJECTS)) $(TEST_SOURCES)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+$(BUILD_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -Iinclude -c $< -o $@
+
+# --- Utilitários ---
+run: $(MAIN_EXEC)
+	@./$(MAIN_EXEC)
 
 clean:
-	rm -rf $(BIN_DIR)/*
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
+
+.PHONY: all test run clean
